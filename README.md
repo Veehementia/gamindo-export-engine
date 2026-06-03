@@ -94,6 +94,26 @@ Il comando stampa il `version_id` generato, da usare nelle chiamate successive.
 Gli inserimenti sono a blocchi (chunk) e i `payload` sono variabili (lingue, utm,
 campi custom) per esercitare filtri JSON e aggregazioni.
 
+### Dataset con anomalie (per il foglio Data Quality)
+
+`make demo` genera dati **coerenti** (Data Quality ~0). Per dimostrare i controlli di
+qualità del report esiste un seeder separato che inietta anomalie controllate (date
+incoerenti, lingua mancante, payload vuoti, eventi orfani, email duplicate):
+
+```bash
+# Default: ~15% di anomalie
+make demo_random
+
+# Più aggressivo / dimensionabile
+make demo_random ARGS="--anomaly-rate=30 --players=500 --events=8000"
+
+# Equivalente diretto
+docker-compose exec app php artisan demo:seed-random --anomaly-rate=25
+```
+
+Genera poi un report (vedi sotto) sulla version creata: nel foglio `Data_Quality`
+i contatori delle anomalie saranno diversi da zero.
+
 ---
 
 ## Comandi principali (Makefile)
@@ -106,7 +126,8 @@ make down      Ferma lo stack
 make migrate   Esegue le migration
 make fresh     Ricrea il DB da zero
 make seed      Seed di base
-make demo      Dataset demo grande (ARGS=...)
+make demo      Dataset demo grande coerente (ARGS=...)
+make demo_random  Dataset demo con anomalie per Data Quality (ARGS=...)
 make worker    Avvia un worker di coda in foreground (debug)
 make test      Esegue la suite PHPUnit
 make client    Esegue il client di integrazione end-to-end
