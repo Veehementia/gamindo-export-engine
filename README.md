@@ -12,7 +12,6 @@ Dimensionato per i volumi target: **10M+ eventi, 1M+ player, export fino a 500k
 righe, più export concorrenti**, a **memoria costante** (streaming in lettura e
 in scrittura).
 
-> Documentazione di design dettagliata: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 > Specifica API: **[docs/openapi.yaml](docs/openapi.yaml)**.
 
 ---
