@@ -6,8 +6,6 @@
 #   mysql  -> storage dati (eventi, player, export, ...)
 #   redis  -> cache + (opzionale) backend di coda ad alte prestazioni
 # ---------------------------------------------------------------------------
-version: "3.8"
-
 services:
   app:
     build:

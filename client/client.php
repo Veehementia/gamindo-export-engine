@@ -33,14 +33,27 @@ function call(string $method, string $url, ?array $body = null): array
     }
     $raw = curl_exec($ch);
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
 
-    $decoded = json_decode($raw, true);
+    // Errore di connessione (host irraggiungibile, porta sbagliata, server giù):
+    // meglio fermarsi subito con un messaggio chiaro che ciclare a vuoto.
+    if ($raw === false || $status === 0) {
+        fwrite(STDERR, "ERRORE di connessione verso $url: " . ($curlError ?: 'nessuna risposta') . "\n");
+        fwrite(STDERR, "Suggerimento: dentro Docker usa la base URL 'http://nginx' (non localhost).\n");
+        exit(1);
+    }
     if ($status >= 400) {
         fwrite(STDERR, "ERRORE HTTP $status su $url:\n$raw\n");
         exit(1);
     }
-    return is_array($decoded) ? $decoded : [];
+
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded)) {
+        fwrite(STDERR, "Risposta non-JSON da $url (HTTP $status):\n$raw\n");
+        exit(1);
+    }
+    return $decoded;
 }
 
 echo "==> 1. Creo la version\n";

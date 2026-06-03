@@ -56,4 +56,5 @@ shell: ## Apre una shell nel container app
 	$(APP) bash
 
 client: ## Esegue il client di esempio end-to-end (ingestione + export + download)
-	$(APP) php client/client.php
+	# Eseguito DENTRO il container: l'API si raggiunge sull'host di rete "nginx", non localhost.
+	$(APP) php client/client.php http://nginx
