@@ -7,16 +7,17 @@ FROM php:7.3-fpm
 # Dipendenze di sistema:
 #  - libzip/zip  -> richiesto da OpenSpout per scrivere gli .xlsx (sono zip)
 #  - git/unzip   -> richiesti da Composer per installare i pacchetti
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        git \
-        unzip \
-        libzip-dev \
-        libonig-dev \
-    && docker-php-ext-install pdo_mysql zip bcmath \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+#
+# NB: fissiamo l'estensione redis a una versione PECL compatibile con PHP 7.3:
+# le versioni 6.x richiedono PHP >= 7.4 e farebbero fallire la build.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends git unzip libzip-dev libonig-dev; \
+    docker-php-ext-install pdo_mysql zip bcmath; \
+    pecl install redis-5.3.7; \
+    docker-php-ext-enable redis; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 # Composer (copiato dall'immagine ufficiale, niente download a runtime).
 COPY --from=composer:2.2 /usr/bin/composer /usr/bin/composer
