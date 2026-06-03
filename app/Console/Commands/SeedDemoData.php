@@ -39,6 +39,11 @@ class SeedDemoData extends Command
     private $companies = ['Hooli', 'Umbrella', 'Globex', 'Stark', 'Wayne', 'Wonka', 'Initech'];
     private $txTypes = ['purchase', 'lead_qualified', 'reward_assigned', 'coupon_redeemed'];
 
+    /** Timestamp di registrazione per player (indice 0-based = ordine di creazione). */
+    private $playerRegisteredAt = [];
+    /** Id del primo player generato in questo run (per mappare indice -> id). */
+    private $minPlayerId = 1;
+
     public function handle(): int
     {
         $version = Version::create([
@@ -51,6 +56,7 @@ class SeedDemoData extends Command
         $this->seedPlayers($version->id, (int) $this->option('players'));
 
         [$minPlayer, $maxPlayer] = $this->playerIdRange($version->id);
+        $this->minPlayerId = $minPlayer;
 
         $this->seedEvents($version->id, (int) $this->option('events'), $minPlayer, $maxPlayer);
         $this->seedTransactions($version->id, (int) $this->option('transactions'), $minPlayer, $maxPlayer);
@@ -74,11 +80,13 @@ class SeedDemoData extends Command
             for ($i = 0; $i < $batch; $i++) {
                 $n = $offset + $i + 1;
                 $lang = $this->pick($this->languages);
+                $registeredTs = $this->registrationTimestamp();
+                $this->playerRegisteredAt[] = $registeredTs;
                 $rows[] = [
                     'version_id' => $versionId,
                     'external_id' => 'p_' . $versionId . '_' . $n,
                     'email' => "player{$n}@example.com",
-                    'registered_at' => $this->randomDate(),
+                    'registered_at' => date('Y-m-d H:i:s', $registeredTs),
                     'total_score' => mt_rand(0, 100000),
                     'payload' => json_encode([
                         'language' => $lang,
@@ -108,11 +116,12 @@ class SeedDemoData extends Command
             $rows = [];
             $batch = min(self::CHUNK, $count - $offset);
             for ($i = 0; $i < $batch; $i++) {
+                [$pid, $regTs] = $this->pickPlayer();
                 $rows[] = [
                     'version_id' => $versionId,
-                    'player_id' => mt_rand($minP, $maxP),
+                    'player_id' => $pid,
                     'type' => $this->pick($this->eventTypes),
-                    'occurred_at' => $this->randomDate(),
+                    'occurred_at' => $this->dateAfter($regTs),
                     'payload' => json_encode([
                         'score' => mt_rand(0, 1000),
                         'level' => mt_rand(1, 50),
@@ -142,13 +151,14 @@ class SeedDemoData extends Command
             $rows = [];
             $batch = min(self::CHUNK, $count - $offset);
             for ($i = 0; $i < $batch; $i++) {
+                [$pid, $regTs] = $this->pickPlayer();
                 $rows[] = [
                     'version_id' => $versionId,
-                    'player_id' => mt_rand($minP, $maxP),
+                    'player_id' => $pid,
                     'amount' => mt_rand(99, 9999),
                     'currency' => 'EUR',
                     'status' => $this->pick(['completed', 'completed', 'refunded', 'failed']),
-                    'occurred_at' => $this->randomDate(),
+                    'occurred_at' => $this->dateAfter($regTs),
                     'payload' => json_encode([
                         'method' => $this->pick(['card', 'paypal', 'wallet']),
                         'type' => $this->pick($this->txTypes),
@@ -174,13 +184,14 @@ class SeedDemoData extends Command
             $batch = min(self::CHUNK, $count - $offset);
             for ($i = 0; $i < $batch; $i++) {
                 $qNum = mt_rand(1, 30);
+                [$pid, $regTs] = $this->pickPlayer();
                 $rows[] = [
                     'version_id' => $versionId,
-                    'player_id' => mt_rand($minP, $maxP),
+                    'player_id' => $pid,
                     'question_id' => 'q_' . $qNum,
                     'answer' => 'opt_' . mt_rand(1, 4),
                     'is_correct' => (bool) mt_rand(0, 1),
-                    'occurred_at' => $this->randomDate(),
+                    'occurred_at' => $this->dateAfter($regTs),
                     'payload' => json_encode([
                         'time_ms' => mt_rand(500, 20000),
                         'question' => 'Domanda ' . $qNum,
@@ -204,12 +215,13 @@ class SeedDemoData extends Command
             $rows = [];
             $batch = min(self::CHUNK, $count - $offset);
             for ($i = 0; $i < $batch; $i++) {
+                [$pid, $regTs] = $this->pickPlayer();
                 $rows[] = [
                     'version_id' => $versionId,
-                    'player_id' => mt_rand($minP, $maxP),
+                    'player_id' => $pid,
                     'type' => $this->pick(['badge', 'coupon', 'points']),
                     'value' => (string) mt_rand(1, 500),
-                    'occurred_at' => $this->randomDate(),
+                    'occurred_at' => $this->dateAfter($regTs),
                     'payload' => json_encode(['campaign' => 'camp_' . mt_rand(1, 5)]),
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -232,10 +244,35 @@ class SeedDemoData extends Command
         return $items[array_rand($items)];
     }
 
-    private function randomDate(): string
+    /** Data di registrazione del player: gen-mag 2026 (lascia spazio alle attività dopo). */
+    private function registrationTimestamp(): int
     {
-        // Distribuito sul 2026, così date_from/date_to hanno effetto.
-        $ts = mt_rand(strtotime('2026-01-01'), strtotime('2026-06-30'));
-        return date('Y-m-d H:i:s', $ts);
+        return mt_rand(strtotime('2026-01-01'), strtotime('2026-05-31 23:59:59'));
+    }
+
+    /**
+     * Sceglie un player a caso e ne restituisce [id, timestamp_registrazione].
+     * Sfrutta l'ordine di inserimento: id = minPlayerId + indice.
+     *
+     * @return array{0:int,1:int}
+     */
+    private function pickPlayer(): array
+    {
+        $count = count($this->playerRegisteredAt);
+        if ($count === 0) {
+            return [$this->minPlayerId, strtotime('2026-01-01')];
+        }
+        $i = mt_rand(0, $count - 1);
+        return [$this->minPlayerId + $i, $this->playerRegisteredAt[$i]];
+    }
+
+    /** Data casuale SUCCESSIVA alla registrazione (coerenza temporale). */
+    private function dateAfter(int $fromTs): string
+    {
+        $end = strtotime('2026-06-30 23:59:59');
+        if ($fromTs >= $end) {
+            $fromTs = $end - 3600;
+        }
+        return date('Y-m-d H:i:s', mt_rand($fromTs, $end));
     }
 }
