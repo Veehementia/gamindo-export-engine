@@ -5,7 +5,7 @@
 DC := docker-compose
 APP := $(DC) exec app
 
-.PHONY: help up down build install setup migrate fresh seed demo worker logs test shell client
+.PHONY: help up down build install setup migrate fresh seed demo demo_random worker logs test shell client
 
 help: ## Mostra questo aiuto
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -39,6 +39,9 @@ seed: ## Seed di base (una versione + dati minimi)
 
 demo: ## Genera un dataset demo grande (parametrizzabile: make demo ARGS="--players=100000 --events=2000000")
 	$(APP) php artisan demo:seed $(ARGS)
+
+demo_random: ## Genera un dataset demo CON anomalie (per esercitare Data_Quality) — ARGS="--anomaly-rate=25"
+	$(APP) php artisan demo:seed-random $(ARGS)
 
 worker: ## Avvia un worker di coda in foreground (debug)
 	$(APP) php artisan queue:work --tries=3 --timeout=3600 -v
