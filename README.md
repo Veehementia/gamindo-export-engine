@@ -363,4 +363,3 @@ Dettagli e diagrammi: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - ✅ **Retry automatico** degli export falliti — `tries`/`backoff` + `/retry`
 - ✅ **Progress percentage** — campo `progress`
 - ✅ **Cancellazione** export in corso — `/cancel`
-```
