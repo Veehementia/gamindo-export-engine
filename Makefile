@@ -55,6 +55,6 @@ test: ## Esegue la suite PHPUnit
 shell: ## Apre una shell nel container app
 	$(APP) bash
 
+# Eseguito DENTRO il container: l'API si raggiunge sull'host di rete "nginx", non localhost.
 client: ## Esegue il client di esempio end-to-end (ingestione + export + download)
-	# Eseguito DENTRO il container: l'API si raggiunge sull'host di rete "nginx", non localhost.
 	$(APP) php client/client.php http://nginx
