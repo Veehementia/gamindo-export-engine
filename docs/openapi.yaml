@@ -80,11 +80,92 @@ paths:
       responses: { "201": { description: OK } }
 
   /versions/{versionId}/transactions:
-    post: { summary: Ingestione transazioni, responses: { "201": { description: OK } } }
+    post:
+      summary: Ingestione massiva transazioni
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transactions]
+              properties:
+                transactions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      player_id: { type: integer, nullable: true }
+                      amount: { type: integer, description: "Importo in centesimi" }
+                      currency: { type: string, default: EUR }
+                      status: { type: string, default: completed }
+                      occurred_at: { type: string, format: date-time }
+                      payload: { type: object }
+      responses:
+        "201": { description: "Inseriti N record" }
+        "404": { description: Version inesistente }
+        "422": { description: Validazione fallita }
+
   /versions/{versionId}/answers:
-    post: { summary: Ingestione risposte, responses: { "201": { description: OK } } }
+    post:
+      summary: Ingestione massiva risposte
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answers]
+              properties:
+                answers:
+                  type: array
+                  items:
+                    type: object
+                    required: [question_id]
+                    properties:
+                      player_id: { type: integer, nullable: true }
+                      question_id: { type: string }
+                      answer: { type: string, nullable: true }
+                      is_correct: { type: boolean, nullable: true }
+                      occurred_at: { type: string, format: date-time }
+                      payload: { type: object }
+      responses:
+        "201": { description: "Inseriti N record" }
+        "404": { description: Version inesistente }
+        "422": { description: Validazione fallita }
+
   /versions/{versionId}/rewards:
-    post: { summary: Ingestione premi, responses: { "201": { description: OK } } }
+    post:
+      summary: Ingestione massiva premi
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rewards]
+              properties:
+                rewards:
+                  type: array
+                  items:
+                    type: object
+                    required: [type]
+                    properties:
+                      player_id: { type: integer, nullable: true }
+                      type: { type: string }
+                      value: { type: string, nullable: true }
+                      occurred_at: { type: string, format: date-time }
+                      payload: { type: object }
+      responses:
+        "201": { description: "Inseriti N record" }
+        "404": { description: Version inesistente }
+        "422": { description: Validazione fallita }
 
   /versions/{versionId}/exports:
     post:
@@ -148,8 +229,30 @@ paths:
       responses: { "202": { description: Ri-accodato }, "409": { description: Stato non valido } }
 
   /versions/{versionId}/export-templates:
-    get: { summary: Elenco template, responses: { "200": { description: OK } } }
-    post: { summary: Crea/aggiorna template, responses: { "201": { description: OK } } }
+    parameters:
+      - { name: versionId, in: path, required: true, schema: { type: integer } }
+    get:
+      summary: Elenco template della version
+      responses:
+        "200": { description: OK }
+        "404": { description: Version inesistente }
+    post:
+      summary: Crea o aggiorna un template di export
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, definition]
+              properties:
+                name: { type: string }
+                description: { type: string, nullable: true }
+                definition:
+                  $ref: "#/components/schemas/ExportDefinition"
+      responses:
+        "201": { description: Template salvato }
+        "422": { description: Definizione non valida }
 
 components:
   schemas:
