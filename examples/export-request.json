@@ -1,0 +1,30 @@
+{
+  "format": "xlsx",
+  "date_from": "2026-01-01",
+  "date_to": "2026-01-31",
+  "sheets": [
+    {
+      "name": "players",
+      "columns": ["player_id", "email", "registered_at", "total_score", "payload.language"],
+      "filters": {
+        "payload.language": "it"
+      },
+      "sort": ["registered_at:desc"]
+    },
+    {
+      "name": "events_summary",
+      "source": "events",
+      "group_by": ["type", "payload.language"],
+      "metrics": ["count", "unique_players"]
+    },
+    {
+      "name": "high_value_tx",
+      "source": "transactions",
+      "columns": ["player_id", "amount", "currency", "status", "occurred_at", "payload.method"],
+      "filters": {
+        "status": "completed"
+      },
+      "sort": ["amount:desc"]
+    }
+  ]
+}

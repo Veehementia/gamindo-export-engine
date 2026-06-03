@@ -1,0 +1,203 @@
+openapi: 3.0.3
+info:
+  title: Gamindo Export Engine API
+  version: "1.0.0"
+  description: >
+    Microservizio per l'ingestione di statistiche di versione e la generazione
+    asincrona di export XLSX configurabili (fogli, colonne, filtri su campi JSON,
+    ordinamenti, aggregazioni, intervallo temporale).
+servers:
+  - url: http://localhost:8080/api/v1
+
+paths:
+  /health:
+    get:
+      summary: Healthcheck
+      responses:
+        "200": { description: OK }
+
+  /versions:
+    get:
+      summary: Elenco versioni (paginato)
+      responses: { "200": { description: OK } }
+    post:
+      summary: Crea una version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                game: { type: string, nullable: true }
+                metadata: { type: object, nullable: true }
+      responses:
+        "201": { description: Creata }
+        "422": { description: Validazione fallita }
+
+  /versions/{versionId}:
+    get:
+      summary: Dettaglio version
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: integer } }
+      responses: { "200": { description: OK }, "404": { description: Non trovata } }
+
+  /versions/{versionId}/events:
+    post:
+      summary: Ingestione massiva eventi
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  items:
+                    type: object
+                    required: [type]
+                    properties:
+                      player_id: { type: integer, nullable: true }
+                      type: { type: string }
+                      occurred_at: { type: string, format: date-time }
+                      payload: { type: object, description: "JSON libero" }
+      responses:
+        "201": { description: "Inseriti N record" }
+        "404": { description: Version inesistente }
+        "422": { description: Validazione fallita }
+
+  /versions/{versionId}/players:
+    post:
+      summary: Ingestione massiva player (UPSERT idempotente)
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: integer } }
+      responses: { "201": { description: OK } }
+
+  /versions/{versionId}/transactions:
+    post: { summary: Ingestione transazioni, responses: { "201": { description: OK } } }
+  /versions/{versionId}/answers:
+    post: { summary: Ingestione risposte, responses: { "201": { description: OK } } }
+  /versions/{versionId}/rewards:
+    post: { summary: Ingestione premi, responses: { "201": { description: OK } } }
+
+  /versions/{versionId}/exports:
+    post:
+      summary: Richiede un export asincrono
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportDefinition"
+      responses:
+        "202": { description: "Accettato; export in coda" }
+        "422": { description: Definizione non valida }
+
+  /versions/{versionId}/exports/preview:
+    post:
+      summary: Anteprima sincrona (max 100 righe per foglio)
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportDefinition"
+      responses:
+        "200": { description: Righe di anteprima }
+
+  /exports/{uuid}:
+    get:
+      summary: Stato di un export
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Export" } } } }
+        "404": { description: Non trovato }
+
+  /exports/{uuid}/download:
+    get:
+      summary: Scarica il file generato
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: File XLSX, content: { application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: {} } }
+        "409": { description: File non ancora disponibile }
+
+  /exports/{uuid}/cancel:
+    post:
+      summary: Cancella un export in coda o in corso
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string } }
+      responses: { "200": { description: OK }, "409": { description: Già concluso } }
+
+  /exports/{uuid}/retry:
+    post:
+      summary: Ri-accoda un export fallito/cancellato
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string } }
+      responses: { "202": { description: Ri-accodato }, "409": { description: Stato non valido } }
+
+  /versions/{versionId}/export-templates:
+    get: { summary: Elenco template, responses: { "200": { description: OK } } }
+    post: { summary: Crea/aggiorna template, responses: { "201": { description: OK } } }
+
+components:
+  schemas:
+    ExportDefinition:
+      type: object
+      required: [sheets]
+      properties:
+        format: { type: string, enum: [xlsx], default: xlsx }
+        date_from: { type: string, format: date, nullable: true }
+        date_to: { type: string, format: date, nullable: true }
+        template_id: { type: integer, nullable: true, description: "Usa un template salvato come base" }
+        sheets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sheet"
+    Sheet:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, description: "Titolo del foglio; se non base, deduce la sorgente o usa 'source'" }
+        source: { type: string, enum: [players, events, transactions, answers, rewards], nullable: true }
+        columns:
+          type: array
+          items: { type: string }
+          description: "Colonne (es. email) o path JSON (es. payload.language)"
+        filters:
+          type: object
+          additionalProperties: true
+          description: "Mappa campo => valore (scalare o array per IN). Supporta payload.*"
+        sort:
+          type: array
+          items: { type: string, example: "registered_at:desc" }
+        group_by:
+          type: array
+          items: { type: string }
+          description: "Attiva la modalità aggregata"
+        metrics:
+          type: array
+          items: { type: string, example: "count" }
+          description: "count | unique_players | sum:<campo> | avg:<campo> | min:<campo> | max:<campo>"
+    Export:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        version_id: { type: integer }
+        status: { type: string, enum: [pending, processing, completed, failed, cancelled] }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        rows_estimated: { type: integer }
+        rows_written: { type: integer }
+        error: { type: string, nullable: true }
+        download_url: { type: string, nullable: true }

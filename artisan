@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+/*
+|--------------------------------------------------------------------------
+| Entry point CLI (Artisan)
+|--------------------------------------------------------------------------
+| Usato per migration, seed, worker di coda e comandi custom (demo:seed).
+*/
+
+$app = require __DIR__ . '/bootstrap/app.php';
+
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+
+exit($kernel->handle(new Symfony\Component\Console\Input\ArgvInput, new Symfony\Component\Console\Output\ConsoleOutput));
