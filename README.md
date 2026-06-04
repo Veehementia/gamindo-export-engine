@@ -31,7 +31,6 @@ in scrittura).
   - [5. Preview, cancel, retry, template](#5-preview-cancel-retry-template-bonus)
 - [Struttura del progetto](#struttura-del-progetto)
 - [Configurazione (.env)](#configurazione-env)
-- [Scelte tecniche in breve](#scelte-tecniche-in-breve)
 - [Funzionalità bonus implementate](#funzionalità-bonus-implementate)
 
 ---
