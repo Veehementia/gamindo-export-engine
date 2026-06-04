@@ -358,22 +358,6 @@ docker/, Dockerfile, docker-compose.yml, Makefile
 
 ---
 
-## Scelte tecniche in breve
-
-- **Lumen 8 / PHP 7.3**: framework microservizio dell'ecosistema Laravel.
-- **Asincronia via coda**: la richiesta HTTP *accoda* e risponde `202`; il worker
-  genera il file. Stato e `progress` persistiti sulla tabella `exports`.
-- **OpenSpout + cursor unbuffered**: lettura e scrittura **in streaming**, RAM
-  costante anche a 500k righe.
-- **Whitelist rigorosa** (`DatasetRegistry`/`FieldResolver`) + binding dei valori:
-  filtri/colonne/sort dinamici **senza** superficie di SQL injection.
-- **Campi JSON dinamici**: `payload.x.y` utilizzabili in colonne, filtri, sort,
-  group_by, metriche; tradotti per MySQL e SQLite.
-
-Dettagli e diagrammi: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
----
-
 ## Funzionalità bonus implementate
 
 - ✅ **Client** Client↔Server (`client/client.php`)
